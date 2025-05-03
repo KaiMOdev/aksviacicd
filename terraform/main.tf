@@ -34,30 +34,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   default_node_pool {
     name                = "system"
-    node_count          = 1
-    min_count           = 1
-    max_count           = 3
-    enable_auto_scaling = true
-    vm_size             = "Standard_B2s"
-    vnet_subnet_id      = azurerm_subnet.aks.id
-  }
-
-  node_pool {
-    name                = "user"
     vm_size             = "Standard_B2s"
     node_count          = 1
     min_count           = 1
     max_count           = 3
     enable_auto_scaling = true
-    mode                = "User"
     vnet_subnet_id      = azurerm_subnet.aks.id
-    node_labels = {
-      role = "user"
-      env  = "dev"
-    }
-    node_taints = [
-      "workload=user:NoSchedule"
-    ]
   }
 
   identity {
@@ -65,7 +47,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   azure_active_directory_role_based_access_control {
-    managed                = true
     azure_rbac_enabled     = true
     admin_group_object_ids = [var.admin_group_object_id]
   }
@@ -75,17 +56,34 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku  = "standard"
     dns_service_ip     = "10.10.2.10"
     service_cidr       = "10.10.2.0/24"
-    docker_bridge_cidr = "172.17.0.1/16"
   }
 
-  addon_profile {
-    oms_agent {
-      enabled                    = true
-      log_analytics_workspace_id = azurerm_log_analytics_workspace.log.id
-    }
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.log.id
   }
 
   sku_tier = "Free"
   private_cluster_enabled  = false
   tags                     = var.tags
+}
+
+resource "azurerm_kubernetes_cluster_node_pool" "user" {
+  name                  = "user"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
+  vm_size               = "Standard_B2s"
+  node_count            = 1
+  min_count             = 1
+  max_count             = 3
+  enable_auto_scaling   = true
+  mode                  = "User"
+  vnet_subnet_id        = azurerm_subnet.aks.id
+
+  node_labels = {
+    role = "user"
+    env  = "dev"
+  }
+
+  node_taints = [
+    "workload=user:NoSchedule"
+  ]
 }
