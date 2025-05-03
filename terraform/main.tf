@@ -1,8 +1,3 @@
-provider "azurerm" {
-  features {}
-  subscription_id = var.subscription_id
-}
-
 resource "azurerm_resource_group" "rg" {
   name     = "rg-aks-demo"
   location = var.location
@@ -93,9 +88,4 @@ resource "azurerm_kubernetes_cluster" "aks" {
   sku_tier = "Free"
   private_cluster_enabled  = false
   tags                     = var.tags
-}
-
-output "kube_config" {
-  value     = azurerm_kubernetes_cluster.aks.kube_config_raw
-  sensitive = true
 }
