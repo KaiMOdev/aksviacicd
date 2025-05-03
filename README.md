@@ -12,3 +12,5 @@ Een eenvoudige demo die een AKS-cluster uitrolt via Terraform en GitHub Actions.
 3. Push deze repo naar GitHub
 
 4. De pipeline wordt automatisch gestart en maakt het AKS-cluster aan.
+
+
