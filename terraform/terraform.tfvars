@@ -5,5 +5,3 @@ tags = {
   environment = "dev"
   owner       = "cloudcrusader"
 }
-
-admin_group_object_id = "fd40ef88-38f5-4032-8066-bd91c50bef90"

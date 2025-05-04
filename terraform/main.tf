@@ -1,45 +1,44 @@
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-aks-demo"
+  name     = var.resource_group_name
   location = var.location
   tags     = var.tags
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  name                = "vnet-aks"
-  address_space       = ["10.10.0.0/16"]
+  name                = "${var.cluster_name}-vnet"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
+  address_space       = ["10.10.0.0/16"]
 }
 
-resource "azurerm_subnet" "aks" {
-  name                 = "snet-aks"
+resource "azurerm_subnet" "aks_subnet" {
+  name                 = "${var.cluster_name}-snet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.10.1.0/24"]
 }
 
 resource "azurerm_log_analytics_workspace" "log" {
-  name                = "log-aks"
-  location            = var.location
+  name                = "${var.cluster_name}-log"
   resource_group_name = azurerm_resource_group.rg.name
+  location            = var.location
   sku                 = "PerGB2018"
   retention_in_days   = 30
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "aks-demo"
-  location            = azurerm_resource_group.rg.location
+  name                = var.cluster_name
+  location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "aksdemoprefix"
+  dns_prefix          = "${var.cluster_name}-dns"
 
   default_node_pool {
-    name                = "system"
-    vm_size             = "Standard_B2s"
-    node_count          = 1
-    min_count           = 1
-    max_count           = 3
-    enable_auto_scaling = true
-    vnet_subnet_id      = azurerm_subnet.aks.id
+    name           = "system"
+    vm_size        = var.system_pool_vm_size
+    node_count     = var.system_pool_node_count
+    vnet_subnet_id = azurerm_subnet.aks_subnet.id
   }
 
   identity {
@@ -47,43 +46,44 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   azure_active_directory_role_based_access_control {
-    azure_rbac_enabled     = true
-    admin_group_object_ids = [var.admin_group_object_id]
+    admin_group_object_ids = var.admin_group_object_ids
+    tenant_id              = data.azurerm_client_config.current.tenant_id
+    azure_rbac_enabled     = var.enable_azure_rbac
   }
 
-  network_profile {
-    network_plugin     = "azure"
-    load_balancer_sku  = "standard"
-    dns_service_ip     = "10.10.2.10"
-    service_cidr       = "10.10.2.0/24"
-  }
+  oidc_issuer_enabled       = var.enable_oidc_issuer
+  workload_identity_enabled = var.enable_workload_identity
+
+  azure_policy_enabled = false
 
   oms_agent {
     log_analytics_workspace_id = azurerm_log_analytics_workspace.log.id
   }
 
-  sku_tier = "Free"
-  private_cluster_enabled  = false
-  tags                     = var.tags
+  network_profile {
+    network_plugin    = "azure"
+    load_balancer_sku = "standard"
+    dns_service_ip    = "10.10.2.10"
+    service_cidr      = "10.10.2.0/24"
+  }
+
+  sku_tier                = var.sku_tier
+  private_cluster_enabled = var.private_cluster_enabled
+  tags                    = var.tags
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "user" {
   name                  = "user"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-  vm_size               = "Standard_B2s"
+  vm_size               = var.system_pool_vm_size
   node_count            = 1
-  min_count             = 1
-  max_count             = 3
-  enable_auto_scaling   = true
   mode                  = "User"
-  vnet_subnet_id        = azurerm_subnet.aks.id
+  vnet_subnet_id        = azurerm_subnet.aks_subnet.id
 
   node_labels = {
     role = "user"
     env  = "dev"
   }
 
-  node_taints = [
-    "workload=user:NoSchedule"
-  ]
+  node_taints = ["workload=user:NoSchedule"]
 }
