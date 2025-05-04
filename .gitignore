@@ -1,0 +1,18 @@
+# Terraform state & cache
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Node (indien van toepassing)
+node_modules/
